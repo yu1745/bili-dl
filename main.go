@@ -2,9 +2,9 @@ package main
 
 import (
 	"flag"
-	"github.com/yu1745/bili/C"
-	"github.com/yu1745/bili/api"
-	"github.com/yu1745/bili/util"
+	"github.com/yu1745/bili-dl/C"
+	"github.com/yu1745/bili-dl/api"
+	"github.com/yu1745/bili-dl/util"
 	"log"
 	"os"
 	"os/exec"

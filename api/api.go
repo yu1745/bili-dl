@@ -2,7 +2,7 @@ package api
 
 import (
 	jsoniter "github.com/json-iterator/go"
-	"github.com/yu1745/bili/C"
+	"github.com/yu1745/bili-dl/C"
 	"io"
 	"log"
 	"net/http"

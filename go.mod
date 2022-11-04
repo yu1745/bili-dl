@@ -1,4 +1,4 @@
-module github.com/yu1745/bili
+module github.com/yu1745/bili-dl
 
 go 1.19
 
