@@ -9,6 +9,7 @@ import (
 	url2 "net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -200,7 +201,11 @@ func GetStream(v Video) (*Stream, error) {
 	return stream, nil
 }
 
+var reg = regexp.MustCompile("[/\\\\]")
+
 func Dl(stream *Stream) error {
+	//正反斜杠替换成空格防止路径问题
+	stream.Title = reg.ReplaceAllString(stream.Title, " ")
 	err := DV(stream)
 	if err != nil {
 		return err
