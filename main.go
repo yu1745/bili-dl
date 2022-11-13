@@ -56,6 +56,15 @@ func main() {
 				log.Println(err)
 				continue
 			}
+			if C.FFMPEG {
+				cmd := exec.Command("ffmpeg", "-y", "-i", filepath.Join(C.O, stream.Title+".mp4"), "-i", filepath.Join(C.O, stream.Title+".mp3"), "-c", "copy", filepath.Join(C.O, stream.Title+"-merged.mp4"))
+				cmd.Stdout = os.Stdout
+				cmd.Stderr = os.Stderr
+				err := cmd.Run()
+				if err != nil {
+					log.Fatalln(err)
+				}
+			}
 		}
 		log.Println("done")
 	} else {
