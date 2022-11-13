@@ -1,6 +1,9 @@
 # bili-dl
-
-功能:
+安装：
+``` shell
+go install github.com/yu1745/bili-dl@latest
+```
+功能：
 
 * 下载指定视频，若要下载多个视频请用逗号分隔，例子
 
