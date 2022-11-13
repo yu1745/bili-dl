@@ -7,4 +7,5 @@ var (
 	FFMPEG bool
 	WD     string
 	J      int
+	BVs    string
 )

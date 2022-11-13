@@ -201,7 +201,7 @@ func GetStream(v Video) (*Stream, error) {
 	return stream, nil
 }
 
-var reg = regexp.MustCompile("[/\\\\]")
+var reg = regexp.MustCompile(`[/\\]`)
 
 func Dl(stream *Stream) error {
 	//正反斜杠替换成空格防止路径问题
@@ -262,4 +262,16 @@ func DA(stream *Stream) error {
 	}
 	_ = file.Close()
 	return nil
+}
+
+func VideoFromBV(bv string) (*Video, error) {
+	info, err := videoInfo(bv)
+	if err != nil {
+		return nil, err
+	}
+	cid := jsoniter.Get(info, "data", "cid").ToString()
+	title := jsoniter.Get(info, "data", "title").ToString()
+	video := Video{BV: bv, Cid: cid, Title: title}
+	log.Printf("%+v\n", video)
+	return &video, nil
 }
