@@ -1,23 +1,21 @@
 package util
 
-import (
-	"sync"
-)
+import "sync"
 
 type GoLimit struct {
-	c    chan int
+	c    chan struct{}
 	wait *sync.WaitGroup
 }
 
 func NewGoLimit(max int) *GoLimit {
 	return &GoLimit{
-		c:    make(chan int, max),
+		c:    make(chan struct{}, max),
 		wait: &sync.WaitGroup{},
 	}
 }
 
 func (g *GoLimit) Add() {
-	g.c <- 0
+	g.c <- struct{}{}
 	g.wait.Add(1)
 }
 

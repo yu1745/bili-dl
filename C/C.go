@@ -8,4 +8,6 @@ var (
 	WD     string
 	J      int
 	BVs    string
+	Merge  bool
+	Delete bool
 )

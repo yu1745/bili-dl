@@ -8,6 +8,7 @@ import (
 	"net/http"
 	url2 "net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -15,7 +16,13 @@ import (
 	"strings"
 )
 
-var client = &http.Client{}
+var client = &http.Client{
+	Transport: &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		//禁止复用连接，防止同一个连接长时间大流量被限速
+		DisableKeepAlives: true,
+	},
+}
 
 func videoInfo(bv string) ([]byte, error) {
 	url := "http://api.bilibili.com/x/web-interface/view"
@@ -46,6 +53,19 @@ func videoInfo(bv string) ([]byte, error) {
 	}
 	//log.Println(string(body))
 	return body, nil
+}
+
+func ResolveVideo(v *Video) (*Video, error) {
+	info, err := videoInfo(v.BV)
+	if err != nil {
+		return nil, err
+	}
+	cid := jsoniter.Get(info, "data", "cid").ToString()
+	title := jsoniter.Get(info, "data", "title").ToString()
+	//v.BV = bv
+	v.Cid = cid
+	v.Title = title
+	return v, nil
 }
 
 func videoFromUP(mid string, pn int) ([]byte, error) {
@@ -83,9 +103,9 @@ func videoFromUP(mid string, pn int) ([]byte, error) {
 }
 
 type Video struct {
-	Title string
-	BV    string
-	Cid   string
+	Title string `json:"title,omitempty"`
+	BV    string `json:"bv,omitempty"`
+	Cid   string `json:"cid,omitempty"`
 }
 
 func AllVideo(mid string) ([]Video, error) {
@@ -115,14 +135,19 @@ func AllVideo(mid string) ([]Video, error) {
 		for _, v := range m {
 			if bvid := v["bvid"]; bvid != nil {
 				//log.Println(bvid)
-				info, err := videoInfo(bvid.(string))
+				/*info, err := videoInfo(bvid.(string))
 				if err != nil {
 					return nil, err
 				}
 				cid := jsoniter.Get(info, "data", "cid").ToString()
-				title := jsoniter.Get(info, "data", "title").ToString()
-				video := Video{BV: bvid.(string), Cid: cid, Title: title}
-				log.Printf("%+v\n", video)
+				title := jsoniter.Get(info, "data", "title").ToString()*/
+				video := Video{BV: bvid.(string) /*, Cid: cid, Title: title*/}
+				//log.Printf("%+v\n", video)
+				videoJson, err := jsoniter.MarshalToString(&video)
+				if err != nil {
+					return nil, err
+				}
+				println(videoJson)
 				videos = append(videos, video)
 			}
 		}
@@ -274,4 +299,30 @@ func VideoFromBV(bv string) (*Video, error) {
 	video := Video{BV: bv, Cid: cid, Title: title}
 	log.Printf("%+v\n", video)
 	return &video, nil
+}
+
+func Merge(stream *Stream) error {
+	cmd := exec.Command("ffmpeg", "-y", "-i", filepath.Join(C.O, stream.Title+".mp4"), "-i", filepath.Join(C.O, stream.Title+".mp3"), "-c", "copy", filepath.Join(C.O, stream.Title+"-merged.mp4"))
+	//cmd.Stdout = os.Stdout
+	//cmd.Stderr = os.Stderr
+	err := cmd.Run()
+	if err != nil {
+		log.Fatalln(err)
+	}
+	if C.Delete {
+		err := os.Remove(filepath.Join(C.O, stream.Title+".mp4"))
+		if err != nil {
+			return err
+		}
+		err = os.Remove(filepath.Join(C.O, stream.Title+".mp3"))
+		if err != nil {
+			return err
+		}
+		err = os.Rename(filepath.Join(C.O, stream.Title+"-merged.mp4"), filepath.Join(C.O, stream.Title+".mp4"))
+		if err != nil {
+			return err
+		}
+	}
+	log.Println(stream.Title, "合并完成")
+	return nil
 }
