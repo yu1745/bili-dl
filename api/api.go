@@ -226,11 +226,8 @@ func GetStream(v Video) (*Stream, error) {
 	return stream, nil
 }
 
-var reg = regexp.MustCompile(`[/\\]`)
-
 func Dl(stream *Stream) error {
-	//正反斜杠替换成空格防止路径问题
-	stream.Title = reg.ReplaceAllString(stream.Title, " ")
+	stream.Title = fileNameFix(stream.Title)
 	err := DV(stream)
 	if err != nil {
 		return err
@@ -325,4 +322,11 @@ func Merge(stream *Stream) error {
 	}
 	log.Println(stream.Title, "合并完成")
 	return nil
+}
+
+var reg = regexp.MustCompile(`[/\\:*?"<>|]`)
+
+// 去掉文件名中的非法字符
+func fileNameFix(name string) string {
+	return reg.ReplaceAllString(name, " ")
 }

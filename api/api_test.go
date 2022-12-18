@@ -42,3 +42,32 @@ func TestDl(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func Test_fileNameFix(t *testing.T) {
+	type args struct {
+		name string
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{"test", args{"a|a"}, "a a"},
+		{"test", args{"a:a"}, "a a"},
+		{"test", args{"a*a"}, "a a"},
+		{"test", args{"a?a"}, "a a"},
+		{"test", args{"a<a"}, "a a"},
+		{"test", args{"a>a"}, "a a"},
+		{"test", args{"a\"a"}, "a a"},
+		{"test", args{"a\\a"}, "a a"},
+		{"test", args{"a/a"}, "a a"},
+		{"test", args{"a|a:a*a?a<a>a\"a\\a/a"}, "a a a a a a a a a a"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := fileNameFix(tt.args.name); got != tt.want {
+				t.Errorf("fileNameFix() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
