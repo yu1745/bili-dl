@@ -226,7 +226,7 @@ func GetStream(v Video) (*Stream, error) {
 	return stream, nil
 }
 
-var reg = regexp.MustCompile(`[/\\]`)
+var reg = regexp.MustCompile(`[/\\:*?"<>|]`)
 
 func Dl(stream *Stream) error {
 	//正反斜杠替换成空格防止路径问题
