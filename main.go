@@ -31,13 +31,13 @@ func init() {
 			panic(err)
 		}
 	}
-	log.Println("Download Path:", C.O)
+	log.Println("下载路径: ", C.O)
 	cmd := exec.Command("ffmpeg", "-version")
 	//cmd.Stdout = os.Stdout
 	err := cmd.Run()
 	if err != nil {
 		log.Println(err)
-		log.Println("ffmpeg not found, will not merge audio and video")
+		log.Println("ffmpeg未找到，将不会合并音频和视频")
 	} else {
 		C.FFMPEG = true
 	}
