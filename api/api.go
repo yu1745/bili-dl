@@ -14,6 +14,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 var client = &http.Client{
@@ -25,7 +26,7 @@ var client = &http.Client{
 }
 
 func videoInfo(bv string) ([]byte, error) {
-	url := "http://api.bilibili.com/x/web-interface/view"
+	url := "https://api.bilibili.com/x/web-interface/view"
 	parse, _ := url2.Parse(url)
 	query := parse.Query()
 	query.Add("bvid", bv)
@@ -69,7 +70,7 @@ func ResolveVideo(v *Video) (*Video, error) {
 }
 
 func videoFromUP(mid string, pn int) ([]byte, error) {
-	url := "http://api.bilibili.com/x/space/arc/search?order=pubdate&ps=49"
+	url := "https://api.bilibili.com/x/space/arc/search?order=pubdate&ps=49"
 	parse, _ := url2.Parse(url)
 	query := parse.Query()
 	query.Add("mid", mid)
@@ -123,6 +124,7 @@ func AllVideo(mid string) ([]Video, error) {
 		pn = count/49 + 1
 	}
 	for i := 1; i <= pn; i++ {
+		time.Sleep(time.Second)
 		bytes, err := videoFromUP(mid, i)
 		if err != nil {
 			return nil, err
@@ -175,7 +177,7 @@ type Stream struct {
 }
 
 func GetStream(v Video) (*Stream, error) {
-	url := "http://api.bilibili.com/x/player/playurl?fnver=0&fnval=3216&fourk=1&qn=127"
+	url := "https://api.bilibili.com/x/player/playurl?fnver=0&fnval=3216&fourk=1&qn=127"
 	parse, _ := url2.Parse(url)
 	query := parse.Query()
 	query.Add("bvid", v.BV)

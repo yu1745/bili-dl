@@ -9,6 +9,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"runtime"
 	"strings"
 )
 
@@ -16,21 +18,33 @@ func init() {
 	log.SetFlags(log.Lshortfile)
 	flag.StringVar(&C.Cookie, "c", "", "cookie,cookie的key是SESSDATA,不设置只能下载480P")
 	flag.StringVar(&C.UP, "up", "", "up主id,设置后会下载该up主的所有视频")
-	flag.StringVar(&C.O, "o", ".", "下载路径,可填相对或绝对路径,windows下不可使用绝对路径")
+	flag.StringVar(&C.O, "o", ".", "下载路径,可填相对或绝对路径,建议在windows下使用相对路径避免无聊的正反斜杠问题")
 	flag.IntVar(&C.J, "j", 1, "同时下载的任务数,默认为1")
 	flag.StringVar(&C.BVs, "bv", "", "1-n个bv号,用逗号分隔,如:BVxxxxxx,BVyyyyyyy")
 	flag.BoolVar(&C.Merge, "m", true, "是否合并视频,默认为true")
 	flag.BoolVar(&C.Delete, "d", true, "合并后是否删除单视频和单音频,默认为true")
-	//flag.BoolVar(&C.GroupByUP, "g", true, "按up分组到不同的文件夹")
 	flag.Parse()
 	C.WD, _ = os.Getwd()
-	if !strings.HasPrefix(C.O, "/") {
-		C.O = filepath.Join(C.WD, C.O)
-		err := os.MkdirAll(C.O, os.ModePerm)
-		if err != nil {
-			panic(err)
+	if //goland:noinspection GoBoolExpressions
+	runtime.GOOS == "windows" || runtime.GOOS == "nt" {
+		pattern := `^[a-zA-Z]:\\(?:[^\\/:*?"<>|\r\n]+\\)*[^\\/:*?"<>|\r\n]*$`
+		if matched, _ := regexp.MatchString(pattern, C.O); !matched {
+			C.O = filepath.Join(C.WD, C.O)
+			err := os.MkdirAll(C.O, os.ModePerm)
+			if err != nil {
+				panic(err)
+			}
+		}
+	} else {
+		if !strings.HasPrefix(C.O, "/") {
+			C.O = filepath.Join(C.WD, C.O)
+			err := os.MkdirAll(C.O, os.ModePerm)
+			if err != nil {
+				panic(err)
+			}
 		}
 	}
+
 	log.Println("下载路径: ", C.O)
 	cmd := exec.Command("ffmpeg", "-version")
 	//cmd.Stdout = os.Stdout
