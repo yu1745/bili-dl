@@ -69,14 +69,18 @@ func ResolveVideo(v *Video) (*Video, error) {
 	return v, nil
 }
 
-func videoFromUP(mid string, pn int) ([]byte, error) {
-	url := "https://api.bilibili.com/x/space/arc/search?order=pubdate&ps=49"
+func videoFromUP(mid string, pn int) (rt []byte, err error) {
+	url := "https://api.bilibili.com/x/space/wbi/arc/search?order=pubdate&ps=49"
 	parse, _ := url2.Parse(url)
 	query := parse.Query()
 	query.Add("mid", mid)
 	query.Add("pn", strconv.Itoa(pn))
 	parse.RawQuery = query.Encode()
 	url = parse.String()
+	url, err = sign(url)
+	if err != nil {
+		return nil, err
+	}
 	method := "GET"
 
 	req, err := http.NewRequest(method, url, nil)
@@ -116,12 +120,16 @@ func AllVideo(mid string) ([]Video, error) {
 		return nil, err
 	}
 	var videos []Video
+	if C.Debug {
+		log.Println(string(bytes))
+	}
 	count := jsoniter.Get(bytes, "data", "page", "count").ToInt()
 	var pn int
-	if count%49 == 0 {
-		pn = count / 49
+	n := 49
+	if count%n == 0 {
+		pn = count / n
 	} else {
-		pn = count/49 + 1
+		pn = count/n + 1
 	}
 	for i := 1; i <= pn; i++ {
 		time.Sleep(time.Second)

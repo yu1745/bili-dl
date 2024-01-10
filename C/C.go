@@ -10,4 +10,5 @@ var (
 	BVs    string
 	Merge  bool
 	Delete bool
+	Debug  bool
 )
