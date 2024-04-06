@@ -11,10 +11,6 @@ go install github.com/yu1745/bili-dl@latest
 bili-dl -bv "BVfcasdsd,BVdsa1232das" ...其他参数
 ```
 
-* 下载up所有视频，例子
-``` shell
-bili-dl -up 23132132 ...其他参数
-```
 * -j 指定下载并发数
 * -c 指定cookie下载高画质视频，cookie的key为SESSDATA，可从浏览器登录b站然后f12获得，例子
 ``` shell

@@ -17,13 +17,14 @@ import (
 func init() {
 	log.SetFlags(log.Lshortfile)
 	flag.StringVar(&C.Cookie, "c", "", "cookie,cookie的key是SESSDATA,不设置只能下载清晰度小于等于480P的视频")
-	flag.StringVar(&C.UP, "up", "", "up主id,设置后会下载该up主的所有视频")
+	// flag.StringVar(&C.UP, "up", "", "up主id,设置后会下载该up主的所有视频")
 	flag.StringVar(&C.O, "o", ".", "下载路径,可填相对或绝对路径,建议在windows下使用相对路径避免正反斜杠问题")
 	flag.IntVar(&C.J, "j", 1, "同时下载的任务数")
 	flag.StringVar(&C.BVs, "bv", "", "1-n个bv号,用逗号分隔,如:BVxxxxxx,BVyyyyyyy")
 	flag.BoolVar(&C.Merge, "m", true, "是否合并视频")
 	flag.BoolVar(&C.Delete, "d", true, "合并后是否删除单视频和单音频")
 	flag.BoolVar(&C.Debug, "debug", false, "是否打印调试信息")
+	flag.BoolVar(&C.AddBVSuffix, "suffix", false, "在下载的视频文件名后添加bv号(通常用来解决视频重名问题)")
 	flag.Parse()
 	C.WD, _ = os.Getwd()
 	if //goland:noinspection GoBoolExpressions

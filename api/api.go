@@ -261,9 +261,17 @@ func DV(stream *Stream) error {
 	if err != nil {
 		return err
 	}
-	file, err := os.OpenFile(filepath.Join(C.O, stream.Title+".mp4"), os.O_CREATE|os.O_RDWR|os.O_TRUNC, os.ModePerm)
-	if err != nil {
-		return err
+	var file *os.File
+	if C.AddBVSuffix {
+		file, err = os.OpenFile(filepath.Join(C.O, stream.Title+"_"+stream.BV+".mp4"), os.O_CREATE|os.O_RDWR|os.O_TRUNC, os.ModePerm)
+		if err != nil {
+			return err
+		}
+	} else {
+		file, err = os.OpenFile(filepath.Join(C.O, stream.Title+".mp4"), os.O_CREATE|os.O_RDWR|os.O_TRUNC, os.ModePerm)
+		if err != nil {
+			return err
+		}
 	}
 	defer file.Close()
 	_ = file.Truncate(0)
@@ -284,9 +292,17 @@ func DA(stream *Stream) error {
 	if err != nil {
 		return err
 	}
-	file, err := os.OpenFile(filepath.Join(C.O, stream.Title+".mp3"), os.O_CREATE|os.O_RDWR|os.O_TRUNC, os.ModePerm)
-	if err != nil {
-		return err
+	var file *os.File
+	if C.AddBVSuffix {
+		file, err = os.OpenFile(filepath.Join(C.O, stream.Title+"_"+stream.BV+".mp3"), os.O_CREATE|os.O_RDWR|os.O_TRUNC, os.ModePerm)
+		if err != nil {
+			return err
+		}
+	} else {
+		file, err = os.OpenFile(filepath.Join(C.O, stream.Title+".mp3"), os.O_CREATE|os.O_RDWR|os.O_TRUNC, os.ModePerm)
+		if err != nil {
+			return err
+		}
 	}
 	defer file.Close()
 	_ = file.Truncate(0)
@@ -310,26 +326,45 @@ func VideoFromBV(bv string) (*Video, error) {
 }
 
 func Merge(stream *Stream) error {
-	cmd := exec.Command("ffmpeg", "-y", "-i", filepath.Join(C.O, stream.Title+".mp4"), "-i", filepath.Join(C.O, stream.Title+".mp3"), "-c", "copy", filepath.Join(C.O, stream.Title+"-merged.mp4"))
-	//cmd.Stdout = os.Stdout
-	//cmd.Stderr = os.Stderr
+	var video string
+	var audio string
+	var output string
+	if C.AddBVSuffix {
+		video = filepath.Join(C.O, stream.Title+"_"+stream.BV+".mp4")
+		audio = filepath.Join(C.O, stream.Title+"_"+stream.BV+".mp3")
+		output = filepath.Join(C.O, stream.Title+"_"+stream.BV+"-merged.mp4")
+	} else {
+		video = filepath.Join(C.O, stream.Title+".mp4")
+		audio = filepath.Join(C.O, stream.Title+".mp3")
+		output = filepath.Join(C.O, stream.Title+"-merged.mp4")
+	}
+	cmd := exec.Command("ffmpeg", "-y", "-i", video, "-i", audio, "-c", "copy", output)
 	err := cmd.Run()
 	if err != nil {
 		log.Println(err)
 	}
 	if C.Delete {
-		err := os.Remove(filepath.Join(C.O, stream.Title+".mp4"))
+		err := os.Remove(video)
 		if err != nil {
 			return err
 		}
-		err = os.Remove(filepath.Join(C.O, stream.Title+".mp3"))
+		err = os.Remove(audio)
 		if err != nil {
 			return err
 		}
-		err = os.Rename(filepath.Join(C.O, stream.Title+"-merged.mp4"), filepath.Join(C.O, stream.Title+".mp4"))
-		if err != nil {
-			return err
+		// err = os.Rename(filepath.Join(C.O, stream.Title+"-merged.mp4"), filepath.Join(C.O, stream.Title+".mp4"))
+		if C.AddBVSuffix {
+			err = os.Rename(output, filepath.Join(C.O, stream.Title+"_"+stream.BV+".mp4"))
+			if err != nil {
+				return err
+			}
+		} else {
+			err = os.Rename(output, filepath.Join(C.O, stream.Title+".mp4"))
+			if err != nil {
+				return err
+			}
 		}
+
 	}
 	log.Println(stream.Title, "合并完成")
 	return nil
