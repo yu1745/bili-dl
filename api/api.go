@@ -1,8 +1,6 @@
 package api
 
 import (
-	jsoniter "github.com/json-iterator/go"
-	"github.com/yu1745/bili-dl/C"
 	"io"
 	"log"
 	"net/http"
@@ -15,6 +13,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	jsoniter "github.com/json-iterator/go"
+	"github.com/yu1745/bili-dl/C"
 )
 
 var client = &http.Client{
@@ -89,7 +90,8 @@ func videoFromUP(mid string, pn int) (rt []byte, err error) {
 		log.Println(err)
 		return nil, err
 	}
-	req.Header.Add("User-Agent", "Apifox/1.0.0 (https://www.apifox.cn)")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36 Edg/123.0.0.0")
+	req.Header.Set("Referer", "https://www.bilibili.com/")
 
 	res, err := client.Do(req)
 	if err != nil {
@@ -185,19 +187,26 @@ type Stream struct {
 }
 
 func GetStream(v Video) (*Stream, error) {
-	url := "https://api.bilibili.com/x/player/playurl?fnver=0&fnval=3216&fourk=1&qn=127"
+	url := "https://api.bilibili.com/x/player/wbi/playurl?fnver=0&fnval=3216&fourk=1&qn=127"
 	parse, _ := url2.Parse(url)
 	query := parse.Query()
 	query.Add("bvid", v.BV)
 	query.Add("cid", v.Cid)
 	parse.RawQuery = query.Encode()
 	url = parse.String()
+	var err error
+	url, err = sign(url)
+	if err != nil {
+		return nil, err
+	}
 	method := "GET"
 
 	req, err := http.NewRequest(method, url, nil)
 	if err != nil {
 		return nil, err
 	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36 Edg/123.0.0.0")
+	req.Header.Set("Referer", "https://www.bilibili.com/")
 
 	req.AddCookie(&http.Cookie{Name: "SESSDATA", Value: C.Cookie})
 
