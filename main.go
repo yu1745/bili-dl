@@ -2,9 +2,7 @@ package main
 
 import (
 	"flag"
-	"github.com/yu1745/bili-dl/C"
-	"github.com/yu1745/bili-dl/api"
-	"github.com/yu1745/bili-dl/util"
+	"io/fs"
 	"log"
 	"os"
 	"os/exec"
@@ -12,19 +10,25 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+
+	"github.com/yu1745/bili-dl/C"
+	"github.com/yu1745/bili-dl/api"
+	"github.com/yu1745/bili-dl/util"
 )
 
 func init() {
+	log.Printf("可以通过在浏览器控制台输入以下代码来获取整页视频的BV\n%s\n===============================================================\n", C.GetAllBV)
 	log.SetFlags(log.Lshortfile)
 	flag.StringVar(&C.Cookie, "c", "", "cookie,cookie的key是SESSDATA,不设置只能下载清晰度小于等于480P的视频")
 	// flag.StringVar(&C.UP, "up", "", "up主id,设置后会下载该up主的所有视频")
 	flag.StringVar(&C.O, "o", ".", "下载路径,可填相对或绝对路径,建议在windows下使用相对路径避免正反斜杠问题")
 	flag.IntVar(&C.J, "j", 1, "同时下载的任务数")
 	flag.StringVar(&C.BVs, "bv", "", "1-n个bv号,用逗号分隔,如:BVxxxxxx,BVyyyyyyy")
-	flag.BoolVar(&C.Merge, "m", true, "是否合并视频")
+	flag.BoolVar(&C.Merge, "m", true, "是否合并视频流和音频流, 不合并将得到单独的视频(不含音频)和单独的音频(不含视频)文件, 不利于正常播放")
 	flag.BoolVar(&C.Delete, "d", true, "合并后是否删除单视频和单音频")
-	flag.BoolVar(&C.Debug, "debug", false, "是否打印调试信息")
-	flag.BoolVar(&C.AddBVSuffix, "suffix", false, "在下载的视频文件名后添加bv号(通常用来解决视频重名问题)")
+	// flag.BoolVar(&C.Debug, "debug", false, "是否打印调试信息")
+	flag.BoolVar(&C.AddBVSuffix, "suffix", true, "在下载的视频文件名后添加bv号(通常用来解决视频重名问题)")
+	flag.BoolVar(&C.DisableOverwrite, "no-overwrite", true, "比对文件名bv号并且不下载已经下载过的视频")
 	flag.Parse()
 	C.WD, _ = os.Getwd()
 	if //goland:noinspection GoBoolExpressions
@@ -46,7 +50,6 @@ func init() {
 			}
 		}
 	}
-
 	log.Println("下载路径: ", C.O)
 	cmd := exec.Command("ffmpeg", "-version")
 	//cmd.Stdout = os.Stdout
@@ -56,6 +59,37 @@ func init() {
 		log.Println("ffmpeg未找到，将不会合并音频和视频")
 	} else {
 		C.FFMPEG = true
+	}
+	reg := regexp.MustCompile(`.*_BV[a-zA-Z0-9]+\.mp4`)
+	bvReg := regexp.MustCompile(`BV[a-zA-Z0-9]+`)
+	bvs := make(map[string]struct{})
+	for _, v := range strings.Split(C.BVs, ",") {
+		if v != "" {
+			bvs[v] = struct{}{}
+		}
+	}
+	exists := make(map[string]struct{})
+	if C.DisableOverwrite {
+		err = filepath.WalkDir(C.O, func(path string, d fs.DirEntry, err error) error {
+			if !d.IsDir() && reg.MatchString(d.Name()) {
+				exists[bvReg.FindString(d.Name())] = struct{}{}
+			}
+			return nil
+		})
+		if err != nil {
+			log.Fatalln(err)
+		}
+		for k := range bvs {
+			if _, ok := exists[k]; ok {
+				log.Printf("%s已存在, 将不会下载\n", k)
+				delete(bvs, k)
+			}
+		}
+		keys := make([]string, 0, len(bvs))
+		for k := range bvs {
+			keys = append(keys, k)
+		}
+		C.BVs = strings.Join(keys, ",")
 	}
 }
 
