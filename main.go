@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"io/fs"
 	"log"
 	"os"
@@ -17,13 +18,13 @@ import (
 )
 
 func init() {
-	log.Printf("可以通过在浏览器控制台输入以下代码来获取整页视频的BV\n%s\n===============================================================\n", C.GetAllBV)
+	// log.Printf("可以通过在浏览器控制台输入以下代码来获取整页视频的BV\n%s\n===============================================================\n", C.GetAllBV)
 	log.SetFlags(log.Lshortfile)
 	flag.StringVar(&C.Cookie, "c", "", "cookie,cookie的key是SESSDATA,不设置只能下载清晰度小于等于480P的视频")
 	// flag.StringVar(&C.UP, "up", "", "up主id,设置后会下载该up主的所有视频")
 	flag.StringVar(&C.O, "o", ".", "下载路径,可填相对或绝对路径,建议在windows下使用相对路径避免正反斜杠问题")
 	flag.IntVar(&C.J, "j", 1, "同时下载的任务数")
-	flag.StringVar(&C.BVs, "bv", "", "1-n个bv号,用逗号分隔,如:BVxxxxxx,BVyyyyyyy")
+	flag.StringVar(&C.BVs, "bv", "", fmt.Sprintf("单或多个bv号, 多个时用逗号分隔, 如: \"BVxxxxxx,BVyyyyyyy\"\n可以通过在浏览器控制台输入以下代码来获取整页的BV\n%s", C.GetAllBV))
 	flag.BoolVar(&C.Merge, "m", true, "是否合并视频流和音频流, 不合并将得到单独的视频(不含音频)和单独的音频(不含视频)文件, 不利于正常播放")
 	flag.BoolVar(&C.Delete, "d", true, "合并后是否删除单视频和单音频")
 	// flag.BoolVar(&C.Debug, "debug", false, "是否打印调试信息")
