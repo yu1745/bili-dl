@@ -110,10 +110,10 @@ func videoFromUP(mid string, pn int) (rt []byte, err error) {
 }
 
 type Video struct {
-	Title  string `json:"title,omitempty"`
-	BV     string `json:"bv,omitempty"`
-	Cid    string `json:"cid,omitempty"`
-	Author string `json:"author,omitempty"`
+	Title string `json:"title,omitempty"`
+	BV    string `json:"bv,omitempty"`
+	Cid   string `json:"cid,omitempty"`
+	// Author string `json:"author,omitempty"`
 }
 
 func AllVideo(mid string) ([]Video, error) {
@@ -154,7 +154,7 @@ func AllVideo(mid string) ([]Video, error) {
 				}
 				cid := jsoniter.Get(info, "data", "cid").ToString()
 				title := jsoniter.Get(info, "data", "title").ToString()*/
-				video := Video{BV: bvid.(string), Author: mid /*, Cid: cid, Title: title*/}
+				video := Video{BV: bvid.(string) /*  Author: mid */ /*, Cid: cid, Title: title*/}
 				//log.Printf("%+v\n", video)
 				videoJson, err := jsoniter.MarshalToString(&video)
 				if err != nil {
