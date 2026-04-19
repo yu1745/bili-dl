@@ -11,7 +11,7 @@ go install github.com/yu1745/bili-dl@latest
 
 ## 功能
 
-下载b站视频，支持批量下载，支持指定cookie实现高画质视频下载
+下载b站视频，支持批量下载，支持指定cookie实现高画质视频下载，支持通过UP主mid获取其所有视频
 
 ``` shell
 -bv string
@@ -34,4 +34,19 @@ go install github.com/yu1745/bili-dl@latest
     在下载的视频文件名后添加bv号
     用来解决视频重名问题
     关闭后跳过已下载功能将失效 (default true)
+-up string
+    UP主mid,设置后会下载该UP主的所有视频
+```
+
+## 使用示例
+
+``` shell
+# 下载指定BV号视频
+bili-dl -bv BV1iyQhB5Eze -c "你的SESSDATA" -o /path/to/save
+
+# 下载多个BV号视频
+bili-dl -bv "BV1iyQhB5Eze,BV1BzQhBmEtK" -c "你的SESSDATA" -o /path/to/save -j 3
+
+# 通过UP主mid下载该UP所有视频
+bili-dl -up 3546944890734614 -c "你的SESSDATA" -o /path/to/save -j 3
 ```
