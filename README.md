@@ -16,8 +16,6 @@ go install github.com/yu1745/bili-dl@latest
 ``` shell
 -bv string
     单或多个bv号, 多个时用逗号分隔, 如: "BVxxxxxx,BVyyyyyyy"
-    可以通过在浏览器控制台输入以下代码来获取整页的BV
-    Array.from(document.querySelectorAll('#submit-video-list > ul.clearfix.cube-list > li')).map(e=>e.dataset['aid']).join(',')
 -c string
     cookie,cookie的key是SESSDATA,不设置只能下载清晰度小于等于480P的视频
 -d    合并后是否删除单视频和单音频 (default true)
