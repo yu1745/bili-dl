@@ -4,7 +4,6 @@ package api
 import (
 	"crypto/md5"
 	"encoding/hex"
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -15,6 +14,8 @@ import (
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
+
+	"github.com/yu1745/bili-dl/C"
 )
 
 var (
@@ -27,33 +28,6 @@ var (
 	cache          sync.Map
 	lastUpdateTime time.Time
 )
-
-func main() {
-	urlStr := "https://api.bilibili.com/x/space/wbi/acc/info?mid=1850091"
-	newUrlStr, err := sign(urlStr)
-	if err != nil {
-		fmt.Printf("Error: %s", err)
-		return
-	}
-	req, err := http.NewRequest("GET", newUrlStr, nil)
-	if err != nil {
-		fmt.Printf("Error: %s", err)
-		return
-	}
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
-	response, err := http.DefaultClient.Do(req)
-	if err != nil {
-		fmt.Printf("Request failed: %s", err)
-		return
-	}
-	defer response.Body.Close()
-	body, err := io.ReadAll(response.Body)
-	if err != nil {
-		fmt.Printf("Failed to read response: %s", err)
-		return
-	}
-	fmt.Println(string(body))
-}
 
 func sign(urlStr string) (string, error) {
 	urlObj, err := url.Parse(urlStr)
@@ -125,10 +99,13 @@ func sanitizeString(s string) string {
 }
 
 func updateCache() {
-	if time.Since(lastUpdateTime).Minutes() < 10 {
+	if time.Since(lastUpdateTime).Minutes() < 10 && lastUpdateTime.Unix() > 0 {
 		return
 	}
 	imgKey, subKey := getWbiKeys()
+	if imgKey == "" || subKey == "" {
+		return
+	}
 	cache.Store("imgKey", imgKey)
 	cache.Store("subKey", subKey)
 	lastUpdateTime = time.Now()
@@ -136,27 +113,56 @@ func updateCache() {
 
 func getWbiKeysCached() (string, string) {
 	updateCache()
-	imgKeyI, _ := cache.Load("imgKey")
-	subKeyI, _ := cache.Load("subKey")
-	return imgKeyI.(string), subKeyI.(string)
+	imgKeyI, ok := cache.Load("imgKey")
+	subKeyI, ok2 := cache.Load("subKey")
+	if !ok || !ok2 {
+		return "", ""
+	}
+	k1, k1ok := imgKeyI.(string)
+	k2, k2ok := subKeyI.(string)
+	if !k1ok || !k2ok {
+		return "", ""
+	}
+	return k1, k2
 }
 
 func getWbiKeys() (string, string) {
-	resp, err := http.Get("https://api.bilibili.com/x/web-interface/nav")
+	req, err := http.NewRequest("GET", "https://api.bilibili.com/x/web-interface/nav", nil)
 	if err != nil {
-		fmt.Printf("Error: %s", err)
+		return "", ""
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36 Edg/123.0.0.0")
+	req.Header.Set("Referer", "https://www.bilibili.com/")
+	if C.Cookie != "" {
+		req.AddCookie(&http.Cookie{Name: "SESSDATA", Value: C.Cookie})
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
 		return "", ""
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Printf("Error: %s", err)
 		return "", ""
 	}
 	json := string(body)
 	imgURL := jsoniter.Get([]byte(json), "data", "wbi_img", "img_url").ToString()
 	subURL := jsoniter.Get([]byte(json), "data", "wbi_img", "sub_url").ToString()
-	imgKey := strings.Split(strings.Split(imgURL, "/")[len(strings.Split(imgURL, "/"))-1], ".")[0]
-	subKey := strings.Split(strings.Split(subURL, "/")[len(strings.Split(subURL, "/"))-1], ".")[0]
-	return imgKey, subKey
+
+	// Extract key from URL path: /xxx/yyy/zzzz.png -> yyyy
+	return extractFileKey(imgURL), extractFileKey(subURL)
+}
+
+func extractFileKey(urlStr string) string {
+	parts := strings.Split(urlStr, "/")
+	if len(parts) < 2 {
+		return ""
+	}
+	filename := parts[len(parts)-1]
+	dotParts := strings.Split(filename, ".")
+	if len(dotParts) < 2 {
+		return ""
+	}
+	return dotParts[0]
 }

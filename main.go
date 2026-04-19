@@ -20,7 +20,7 @@ import (
 func init() {
 	log.SetFlags(log.Lshortfile)
 	flag.StringVar(&C.Cookie, "c", "", "cookie,cookie的key是SESSDATA,不设置只能下载清晰度小于等于480P的视频")
-	// flag.StringVar(&C.UP, "up", "", "up主id,设置后会下载该up主的所有视频")
+	flag.StringVar(&C.UP, "up", "", "up主mid,设置后会下载该up主的所有视频")
 	flag.StringVar(&C.O, "o", ".", "下载路径,可填相对或绝对路径,建议在windows下使用相对路径避免正反斜杠问题")
 	flag.IntVar(&C.J, "j", 1, "同时下载的任务数\n机械硬盘不应超过5")
 	flag.StringVar(&C.BVs, "bv", "", fmt.Sprintf("单或多个bv号, 多个时用逗号分隔, 如: \"BVxxxxxx,BVyyyyyyy\"\n可以通过在浏览器控制台输入以下代码来获取整页的BV\n%s", C.GetAllBV))
@@ -31,8 +31,7 @@ func init() {
 	flag.BoolVar(&C.DisableOverwrite, "no-overwrite", true, "跳过下载过的视频\n注意: 需要先前下载时没有指定suffix为false")
 	flag.Parse()
 	C.WD, _ = os.Getwd()
-	if //goland:noinspection GoBoolExpressions
-	runtime.GOOS == "windows" || runtime.GOOS == "nt" {
+	if runtime.GOOS == "windows" {
 		pattern := `^[a-zA-Z]:\\(?:[^\\/:*?"<>|\r\n]+\\)*[^\\/:*?"<>|\r\n]*$`
 		if matched, _ := regexp.MatchString(pattern, C.O); !matched {
 			C.O = filepath.Join(C.WD, C.O)
@@ -69,10 +68,16 @@ func init() {
 		}
 	}
 	exists := make(map[string]struct{})
-	if C.DisableOverwrite {
+	if C.DisableOverwrite && C.O != "" {
+		_ = os.MkdirAll(C.O, 0755)
 		err = filepath.WalkDir(C.O, func(path string, d fs.DirEntry, err error) error {
-			if !d.IsDir() && reg.MatchString(d.Name()) {
-				exists[bvReg.FindString(d.Name())] = struct{}{}
+			if err != nil {
+				return nil
+			}
+			if d != nil && !d.IsDir() && reg.MatchString(d.Name()) {
+				if bv := bvReg.FindString(d.Name()); bv != "" {
+					exists[bv] = struct{}{}
+				}
 			}
 			return nil
 		})

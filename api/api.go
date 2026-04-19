@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -9,7 +10,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -82,9 +82,8 @@ func videoFromUP(mid string, pn int) (rt []byte, err error) {
 	if err != nil {
 		return nil, err
 	}
-	method := "GET"
 
-	req, err := http.NewRequest(method, url, nil)
+	req, err := http.NewRequest("GET", url, nil)
 
 	if err != nil {
 		log.Println(err)
@@ -92,6 +91,9 @@ func videoFromUP(mid string, pn int) (rt []byte, err error) {
 	}
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36 Edg/123.0.0.0")
 	req.Header.Set("Referer", "https://www.bilibili.com/")
+	if C.Cookie != "" {
+		req.AddCookie(&http.Cookie{Name: "SESSDATA", Value: C.Cookie})
+	}
 
 	res, err := client.Do(req)
 	if err != nil {
@@ -122,46 +124,41 @@ func AllVideo(mid string) ([]Video, error) {
 		return nil, err
 	}
 	var videos []Video
-	if C.Debug {
-		log.Println(string(bytes))
-	}
 	count := jsoniter.Get(bytes, "data", "page", "count").ToInt()
-	var pn int
-	n := 49
-	if count%n == 0 {
-		pn = count / n
-	} else {
-		pn = count/n + 1
+	if count == 0 {
+		// No videos or API error, try to parse what we got
+		count = 1
 	}
+	// Calculate number of pages (ceiling division)
+	pn := (count + 48) / 49
+	if pn < 1 {
+		pn = 1
+	}
+
 	for i := 1; i <= pn; i++ {
 		time.Sleep(time.Second)
 		bytes, err := videoFromUP(mid, i)
 		if err != nil {
-			return nil, err
+			log.Printf("Failed to fetch page %d: %v, continuing...", i, err)
+			continue
 		}
 		vlist := jsoniter.Get(bytes, "data", "list", "vlist").ToString()
+		if vlist == "" {
+			continue
+		}
 		var m []map[string]any
-		err = jsoniter.Unmarshal([]byte(vlist), &m)
-		if err != nil {
-			return nil, err
+		if err := jsoniter.Unmarshal([]byte(vlist), &m); err != nil {
+			log.Printf("Failed to parse page %d: %v, continuing...", i, err)
+			continue
 		}
 		for _, v := range m {
 			if bvid := v["bvid"]; bvid != nil {
-				//log.Println(bvid)
-				/*info, err := videoInfo(bvid.(string))
-				if err != nil {
-					return nil, err
+				if bvStr, ok := bvid.(string); ok {
+					video := Video{BV: bvStr}
+					videoJson, _ := jsoniter.MarshalToString(&video)
+					println(videoJson)
+					videos = append(videos, video)
 				}
-				cid := jsoniter.Get(info, "data", "cid").ToString()
-				title := jsoniter.Get(info, "data", "title").ToString()*/
-				video := Video{BV: bvid.(string) /*  Author: mid */ /*, Cid: cid, Title: title*/}
-				//log.Printf("%+v\n", video)
-				videoJson, err := jsoniter.MarshalToString(&video)
-				if err != nil {
-					return nil, err
-				}
-				println(videoJson)
-				videos = append(videos, video)
 			}
 		}
 	}
@@ -175,9 +172,23 @@ func codec2i(codec string) int {
 		return 2
 	} else if strings.HasPrefix(codec, "av01") {
 		return 3
-	} else {
-		return 0
 	}
+	return 0
+}
+
+// Safe map accessors to avoid panics from type assertions
+func getString(m map[string]any, key string) string {
+	if v, ok := m[key].(string); ok {
+		return v
+	}
+	return ""
+}
+
+func getFloat(m map[string]any, key string) float64 {
+	if v, ok := m[key].(float64); ok {
+		return v
+	}
+	return 0
 }
 
 type Stream struct {
@@ -226,23 +237,34 @@ func GetStream(v Video) (*Stream, error) {
 	if err != nil {
 		return nil, err
 	}
-	sort.Slice(l, func(i, j int) bool {
-		if codec2i(l[i]["codecs"].(string)) == codec2i(l[j]["codecs"].(string)) {
-			return l[i]["width"].(float64) > l[j]["width"].(float64)
-		} else {
-			return codec2i(l[i]["codecs"].(string)) > codec2i(l[j]["codecs"].(string))
+	if len(l) == 0 {
+		return nil, fmt.Errorf("no video streams available")
+	}
+	// Find best video stream without full sort
+	bestIdx := 0
+	for i := 1; i < len(l); i++ {
+		ci, cj := codec2i(getString(l[i], "codecs")), codec2i(getString(l[bestIdx], "codecs"))
+		if ci > cj || (ci == cj && getFloat(l[i], "width") > getFloat(l[bestIdx], "width")) {
+			bestIdx = i
 		}
-	})
+	}
 	audios := jsoniter.Get(body, "data", "dash", "audio").ToString()
 	var l2 []map[string]any
 	err = jsoniter.Unmarshal([]byte(audios), &l2)
 	if err != nil {
 		return nil, err
 	}
-	sort.Slice(l2, func(i, j int) bool {
-		return l2[i]["bandwidth"].(float64) > l2[j]["bandwidth"].(float64)
-	})
-	stream := &Stream{V: l[0]["base_url"].(string), A: l2[0]["base_url"].(string), Video: v}
+	if len(l2) == 0 {
+		return nil, fmt.Errorf("no audio streams available")
+	}
+	// Find best audio stream without full sort
+	bestAudioIdx := 0
+	for i := 1; i < len(l2); i++ {
+		if getFloat(l2[i], "bandwidth") > getFloat(l2[bestAudioIdx], "bandwidth") {
+			bestAudioIdx = i
+		}
+	}
+	stream := &Stream{V: getString(l[bestIdx], "base_url"), A: getString(l2[bestAudioIdx], "base_url"), Video: v}
 	return stream, nil
 }
 
@@ -335,9 +357,7 @@ func VideoFromBV(bv string) (*Video, error) {
 }
 
 func Merge(stream *Stream) error {
-	var video string
-	var audio string
-	var output string
+	var video, audio, output string
 	if C.AddBVSuffix {
 		video = filepath.Join(C.O, stream.Title+"_"+stream.BV+".mp4")
 		audio = filepath.Join(C.O, stream.Title+"_"+stream.BV+".mp3")
@@ -348,32 +368,25 @@ func Merge(stream *Stream) error {
 		output = filepath.Join(C.O, stream.Title+"-merged.mp4")
 	}
 	cmd := exec.Command("ffmpeg", "-y", "-i", video, "-i", audio, "-c", "copy", output)
-	err := cmd.Run()
-	if err != nil {
-		log.Println(err)
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("ffmpeg merge failed: %w", err)
 	}
 	if C.Delete {
-		err := os.Remove(video)
-		if err != nil {
+		if err := os.Remove(video); err != nil {
 			return err
 		}
-		err = os.Remove(audio)
-		if err != nil {
+		if err := os.Remove(audio); err != nil {
 			return err
 		}
-		// err = os.Rename(filepath.Join(C.O, stream.Title+"-merged.mp4"), filepath.Join(C.O, stream.Title+".mp4"))
 		if C.AddBVSuffix {
-			err = os.Rename(output, filepath.Join(C.O, stream.Title+"_"+stream.BV+".mp4"))
-			if err != nil {
+			if err := os.Rename(output, filepath.Join(C.O, stream.Title+"_"+stream.BV+".mp4")); err != nil {
 				return err
 			}
 		} else {
-			err = os.Rename(output, filepath.Join(C.O, stream.Title+".mp4"))
-			if err != nil {
+			if err := os.Rename(output, filepath.Join(C.O, stream.Title+".mp4")); err != nil {
 				return err
 			}
 		}
-
 	}
 	log.Println(stream.Title, "合并完成")
 	return nil
